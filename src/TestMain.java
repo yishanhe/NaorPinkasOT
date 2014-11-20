@@ -3,7 +3,13 @@ import java.math.BigInteger;
 import java.security.*;
 import java.security.interfaces.DSAPublicKey;
 
-public class Main {
+/**
+ * 1-out-of-N OT
+ * credit to PSI implementation
+ * https://personal.cis.strath.ac.uk/changyu.dong/PSI/PSI.html
+ *
+ */
+public class TestMain {
 
     public static void main(String[] args) {
         System.out.println("Test OT");
@@ -21,7 +27,12 @@ public class Main {
         }
 
         SecureRandom rnd = new SecureRandom();
-        keyPairGenerator.initialize(1024,rnd);
+        if (keyPairGenerator != null) {
+            keyPairGenerator.initialize(1024,rnd);
+        } else {
+            System.out.println("KeyGen failed.");
+            return;
+        }
         KeyPair keyPair = keyPairGenerator.generateKeyPair();
         DSAPublicKey pub = (DSAPublicKey)keyPair.getPublic();
 
@@ -48,7 +59,7 @@ public class Main {
 
         // depend on k
         try {
-            md = MessageDigest.getInstance("SHA1");
+            md = MessageDigest.getInstance("SHA1"); //SHA1 is just 160bits output
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
         }
@@ -58,10 +69,11 @@ public class Main {
         BasePrimeOTS sender = new BasePrimeOTS(p,q,g,md,k,N,toSend);
 
         // init a selection vector using random int
+        System.out.println("\n\nChoices:");
         int[] selection = new int[k];
         for (int i = 0; i < k; i++) {
             selection[i] = rnd.nextInt(N);
-            System.out.println(selection[i]);
+            System.out.println("\t"+selection[i]);
         }
 
         BasePrimeOTR receiver = new BasePrimeOTR(p,q,g,selection,md,N);
@@ -82,24 +94,29 @@ public class Main {
 
         byte[][][] allresult = receiver.tryDecAll(encrypted,cs);
 
+        System.out.println("\n\nReceived ");
         for (int i = 0; i < k; i++) {
 
-            if(!test(result[i],toSend[i][selection[i]])){
-                System.out.println("Incorrect at bit "+i+": choice "+selection[i]);
-                System.out.println(bytesToHex(result[i]) + " v.s " + bytesToHex(toSend[i][selection[i]]));
+            if(Util.compareByteArrays(result[i], toSend[i][selection[i]])){
+                System.out.println("\tCorrect at round "+i+": choice "+selection[i]);
+                System.out.println("\t"+Util.bytesToHex(result[i]) + " v.s " + Util.bytesToHex(toSend[i][selection[i]]));
 
             }
         }
+//
+//        // check all other are corrupted.
+        System.out.println("\n\nTest if all others are corrupted.");
 
-        // check all other are corrupted.
         for (int i = 0; i < k; i++) {
+            System.out.println("Round " + i + ": ");
             for (int j = 0; j < N; j++) {
-                if(!test(result[i],toSend[i][j])){
-                    System.out.println("Incorrect at bit "+i+": choice "+j);
+                if(!Util.compareByteArrays(allresult[i][j], toSend[i][j])){
+                    System.out.println("\t Corrupted at choice "+j);
+                    System.out.println("\t\t " + Util.bytesToHex(allresult[i][j]) + " v.s " + Util.bytesToHex(toSend[i][j]));
 //                    System.out.println(bytesToHex(result[i]) + " v.s " + bytesToHex(toSend[i][selection[i]]));
 
                 } else {
-                    System.out.println("Correct at bit "+i+": choice "+j);;
+                    System.out.println("\t Correct at choice "+j);
                 }
             }
         }
@@ -113,24 +130,6 @@ public class Main {
 
     }
 
-    private static boolean test(byte[] bs, byte[] bs2) {
-        for(int i=0;i<bs.length;i++){
-            if(bs[i]!=bs2[i])
-                return false;
-        }
-        return true;
-    }
-
-    final protected static char[] hexArray = "0123456789ABCDEF".toCharArray();
-    public static String bytesToHex(byte[] bytes) {
-        char[] hexChars = new char[bytes.length * 2];
-        for ( int j = 0; j < bytes.length; j++ ) {
-            int v = bytes[j] & 0xFF;
-            hexChars[j * 2] = hexArray[v >>> 4];
-            hexChars[j * 2 + 1] = hexArray[v & 0x0F];
-        }
-        return new String(hexChars);
-    }
 
 
 }

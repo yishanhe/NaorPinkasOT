@@ -1,4 +1,3 @@
-import com.sun.tools.internal.xjc.reader.xmlschema.bindinfo.BIGlobalBinding;
 
 import java.math.BigInteger;
 import java.security.MessageDigest;
@@ -93,13 +92,15 @@ public class BasePrimeOTR {
 
         for (int i = 0; i < this.selectLen; i++) {
 
+            for (int j = 0; j < this.N; j++) {
+
             BigInteger pkr = cs[0].modPow(this.ks[i], this.p);
 
             byte[] ba = pkr.toByteArray();
 
             this.md.update(ba);
 
-            for (int j = 0; j < this.N; j++) {
+
                 result[i][j] = new byte[received[i][j].length];
                 System.arraycopy(this.md.digest(BigInteger.valueOf(j).toByteArray()),0,result[i][j],0,result[i][j].length);
                 Util.xor(result[i][j], received[i][j]);
